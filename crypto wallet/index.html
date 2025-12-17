@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Elite WalletX</title>
+
+<!-- Ethers v6 -->
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.8.0/dist/ethers.umd.min.js"></script>
+
+<style>
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    color: white;
+    background: url("https://images.unsplash.com/photo-1621416894569-0f39ed31d247") center/cover;
+}
+.overlay {
+    min-height: 100vh;
+    background: rgba(0,0,0,0.65);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.dashboard {
+    width: 420px;
+    background: rgba(255,255,255,0.12);
+    padding: 22px;
+    border-radius: 16px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 0 20px rgba(0,255,255,0.2);
+}
+h2 {
+    text-align: center;
+    margin-bottom: 6px;
+}
+.subtitle {
+    text-align: center;
+    font-size: 13px;
+    color: #bff;
+    margin-bottom: 15px;
+}
+input {
+    width: 100%;
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+    margin-bottom: 10px;
+}
+.menu {
+    display: flex;
+    gap: 8px;
+}
+button {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+    background: cyan;
+    font-weight: bold;
+    cursor: pointer;
+}
+.section {
+    background: rgba(0,0,0,0.4);
+    padding: 10px;
+    border-radius: 10px;
+    margin-top: 12px;
+}
+ul {
+    list-style: none;
+    padding: 0;
+    max-height: 180px;
+    overflow-y: auto;
+}
+li {
+    font-size: 12px;
+    margin-bottom: 6px;
+}
+</style>
+</head>
+
+<body>
+<div class="overlay">
+<div class="dashboard">
+
+<h2>💳 CryptoPulse</h2>
+<div class="subtitle">Smart Money Wallet Dashboard</div>
+
+<input id="walletInput" placeholder="Wallet address auto-filled" />
+
+<div class="menu">
+    <button onclick="connectWallet()">🔗 Connect</button>
+    <button onclick="getBalance()">💰 Balance</button>
+    <button onclick="getTransactions()">📜 Transactions</button>
+</div>
+
+<div class="section" id="statusBox">
+    Status: Not connected
+</div>
+
+<div class="section">
+    <b>Recent Transactions</b>
+    <ul id="txList"></ul>
+</div>
+
+</div>
+</div>
+
+<script>
+let provider;
+let signer;
+async function connectWallet() {
+    if (!window.ethereum) {
+        alert("❌ MetaMask not installed");
+        return;
+    }
+    try {
+        await window.ethereum.request({ method: "eth_requestAccounts" });
+        provider = new ethers.BrowserProvider(window.ethereum);
+        signer = await provider.getSigner();
+
+        const address = await signer.getAddress();
+        document.getElementById("walletInput").value = address;
+
+        document.getElementById("statusBox").innerHTML =
+            `✅ Wallet Connected<br>Address: ${address.slice(0,6)}...${address.slice(-4)}`;
+    } catch (err) {
+        alert("Connection rejected");
+        console.error(err);
+    }
+}
+async function getBalance() {
+    if (!provider) {
+        alert("Connect wallet first");
+        return;
+    }
+    const address = document.getElementById("walletInput").value;
+    if (!ethers.isAddress(address)) {
+        alert("Invalid address");
+        return;
+    }
+    const balance = await provider.getBalance(address);
+    document.getElementById("statusBox").innerHTML =
+        `💰 Wallet Balance: <b>${ethers.formatEther(balance)} ETH</b>`;
+}
+async function getTransactions() {
+    const address = document.getElementById("walletInput").value;
+    const list = document.getElementById("txList");
+    list.innerHTML = "";
+
+    if (!ethers.isAddress(address)) {
+        list.innerHTML = "<li>Invalid address</li>";
+        return;
+    }
+
+    try {
+        const res = await fetch(
+          `https://eth.blockscout.com/api?module=account&action=txlist&address=${address}&sort=desc`
+        );
+        const data = await res.json();
+
+        if (!data.result || data.result.length === 0) {
+            list.innerHTML = "<li>No transactions found</li>";
+            return;
+        }
+
+        data.result.slice(0, 10).forEach(tx => {
+            list.innerHTML +=
+                `<li>🔹 ${ethers.formatEther(tx.value)} ETH</li>`;
+        });
+    } catch (e) {
+        list.innerHTML = "<li>Error loading transactions</li>";
+        console.error(e);
+    }
+}
+</script>
+
+</body>
+</html>
